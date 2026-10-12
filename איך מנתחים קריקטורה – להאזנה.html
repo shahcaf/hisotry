@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>איך מנתחים קריקטורה – להאזנה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3efe6; --card: #fffdf8; --ink: #1d2a33; --muted: #5d6b75;
+    --accent: #1f5f7a; --accent-ink: #ffffff; --hl: #ffe9a8; --line: #d9d2c2;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141b20; --card: #1c262d; --ink: #e8eef2; --muted: #9fb0bb;
+      --accent: #7cc4e0; --accent-ink: #0d1a21; --hl: #3b3414; --line: #2c3a44;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141b20; --card: #1c262d; --ink: #e8eef2; --muted: #9fb0bb;
+    --accent: #7cc4e0; --accent-ink: #0d1a21; --hl: #3b3414; --line: #2c3a44;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 90px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Heebo", system-ui, "Segoe UI", Arial, sans-serif;
+    line-height: 1.7; font-size: 18px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 24px 18px 80px; }
+  h1 { font-size: 2rem; font-weight: 800; margin: 8px 0 4px; line-height: 1.25; }
+  .sub { color: var(--muted); margin: 0 0 18px; font-size: .95rem; }
+
+  .bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    background: var(--bg); padding: 10px 0 12px; border-bottom: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  }
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; padding: 9px 16px;
+    border: 1.5px solid var(--accent); background: transparent; color: var(--accent);
+    font-weight: 600;
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  label.speed { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; margin-inline-start: auto; }
+  select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+
+  .notice { display: none; margin: 14px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--hl); font-size: .92rem; }
+
+  section {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; margin: 18px 0; transition: background .2s;
+  }
+  section.playing { background: var(--hl); }
+  section header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  h2 { font-size: 1.2rem; margin: 0; font-weight: 800; }
+  section button.mini { padding: 4px 12px; font-size: .85rem; }
+  section p, section li { margin: 8px 0 0; }
+  section ul { margin: 6px 0 0; padding-inline-start: 22px; }
+  blockquote { margin: 10px 0 0; padding: 4px 14px; border-inline-start: 4px solid var(--accent); color: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { section { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>איך מנתחים קריקטורה</h1>
+  <p class="sub">לחצו על "הקראת הכול" או על "הקרא" בכל סעיף.</p>
+
+  <div class="bar" role="toolbar" aria-label="בקרת הקראה">
+    <button class="primary" id="playAll">הקראת הכול</button>
+    <button id="pauseBtn">השהיה</button>
+    <button id="stopBtn">עצירה</button>
+    <label class="speed" style="margin-inline-start:0"><input type="checkbox" id="loop"> חזרה בלולאה</label>
+    <label class="speed" style="margin-inline-start:0">קול <select id="voiceSel" aria-label="בחירת קול"></select></label>
+    <label class="speed">מהירות
+      <select id="rate" aria-label="מהירות הקראה">
+        <option value="0.75" selected>איטית</option>
+        <option value="0.9">רגילה</option>
+        <option value="1.1">מהירה</option>
+      </select>
+    </label>
+  </div>
+  <div class="notice" id="notice"></div>
+
+  <div id="content"></div>
+</div>
+
+<script>
+(function () {
+  var SECTIONS = [
+    { title: "מבוא",
+      html: "<p>קריקטורה היא ציור שמציג אדם או אירוע בהגזמה כדי להעביר מסר. כדי לנתח אותה, אפשר ללכת לפי חמישה שלבים: תיאור, סמלים, הגזמה, הקשר היסטורי והמסר.</p>" },
+    { title: "1. תיאור: מה אני רואה?",
+      html: "<p>מתחילים בלתאר את מה שרואים בציור, בלי לפרש עדיין:</p><ul><li>מי או מה מופיע בציור? אנשים, מדינות, חפצים.</li><li>מה הם עושים?</li><li>איפה זה קורה?</li><li>האם יש כיתובים, מילים או תאריך?</li></ul>" },
+    { title: "2. זיהוי הסמלים",
+      html: "<p>בקריקטורות משתמשים הרבה בסמלים. שואלים את עצמנו מה כל דבר מייצג:</p><ul><li><b>דמויות:</b> האם דמות מסוימת מייצגת מדינה, שליט או קבוצה? למשל, איש גדול ושמן יכול לייצג מדינה חזקה או חמדנית.</li><li><b>חפצים:</b> מפה, כסף, חרב, שק זהב, כבל או שרשרת. כל אחד מהם מייצג רעיון.</li><li><b>צבעים וגדלים:</b> דמות גדולה מייצגת בדרך כלל כוח, ודמות קטנה מייצגת חולשה.</li></ul>" },
+    { title: "3. זיהוי ההגזמה",
+      html: "<p>ההגזמה היא מה שמבדיל קריקטורה מציור רגיל. שואלים: מה הצייר הגזים? גדלים, הבעות פנים או תכונות. ההגזמה מראה מה הצייר רוצה להדגיש.</p>" },
+    { title: "4. הקשר היסטורי",
+      html: "<ul><li>באיזו תקופה נוצרה הקריקטורה?</li><li>איזה אירוע היא מתארת?</li><li>מי צייר אותה ולטובת מי? עיתון, מדינה או ארגון.</li></ul>" },
+    { title: "5. המסר",
+      html: "<p>זה השלב החשוב ביותר, והוא גם מה שנשאל בדף: מהו המסר של הקריקטורה?</p><ul><li>מה הצייר רוצה שאחשוב או ארגיש?</li><li>האם הוא בעד או נגד מישהו?</li><li>איזו ביקורת יש בקריקטורה?</li></ul>" },
+    { title: "דוגמה לנוסח תשובה",
+      html: "<p>בהתאם למה שנרשם בדף על האימפריאליזם:</p><blockquote>בקריקטורה מופיעות שתי מדינות אירופיות שנאבקות על מפת אפריקה. הצייר הגזים בגודל הדמויות ובחמדנות שלהן כדי להראות שהן רוצות להשתלט על עושר ועל שטחים. המסר הוא שמדינות אירופה התחרו ביניהן על השליטה באפריקה בלי להתחשב בעמים שחיו שם.</blockquote>" },
+    { title: "טיפ: מבנה התשובה",
+      html: "<p>כשכותבים תשובה, כדאי לעקוב אחרי המבנה: <b>מה רואים, מה זה מסמל, מה המסר</b>. כך התשובה מלאה ומשכנעת.</p>" },
+    { title: "סמלים נפוצים בקריקטורות על אפריקה",
+      html: "<ul><li><b>מפת אפריקה:</b> השטח שעליו מתחרים.</li><li><b>עוגה או שולחן אוכל:</b> חלוקת אפריקה בין המעצמות.</li><li><b>דמויות אירופיות גדולות:</b> מעצמות קולוניאליות חזקות וחמדניות.</li><li><b>דמות אפריקאית קטנה או כבולה:</b> העמים המקומיים שלא נשאלו.</li><li><b>שק זהב או יהלומים:</b> משאבים וכסף שהמעצמות רוצות.</li><li><b>חרב, רובה או אוניה:</b> כוח צבאי וכיבוש.</li><li><b>ענק שדורך על היבשת:</b> שליטה מוחלטת.</li></ul>" },
+    { title: "רקע היסטורי שכדאי להכיר",
+      html: "<ul><li><b>חלוקת אפריקה:</b> במאה ה-19 מדינות אירופה כבשו כמעט את כל היבשת. עד 1914 רק אתיופיה וליבריה נשארו עצמאיות.</li><li><b>ועידת ברלין, 1884 עד 1885:</b> המעצמות הסכימו ביניהן על כללי החלוקה, בלי שאף נציג אפריקאי השתתף.</li><li><b>לאופולד השני והקונגו:</b> מלך בלגיה שלט בקונגו כרכוש אישי, והתעללות בעובדים שם עוררה ביקורת חריפה בעולם.</li><li><b>מקייפ לקהיר:</b> סיסיל רודס רצה לחבר את כל השטחים הבריטיים באפריקה ברצועה אחת מדרום ליבשת עד צפונה. קריקטורה מפורסמת ציירה אותו כענק שנועץ רגל בכל קצה.</li><li><b>פשודה, 1898:</b> בריטניה וצרפת כמעט נלחמו זו בזו על השליטה בסודאן.</li><li><b>נטל האדם הלבן:</b> הצדקה שהמעצמות נתנו, כאילו הן באות לתרבת את העמים האפריקאים. בפועל, המניעים היו כלכליים ופוליטיים.</li></ul>" },
+    { title: "עוד טיפים לכתיבה ולמבחן",
+      html: "<ul><li>התחילו מהכותרת והכיתוב. לרוב הם אומרים במפורש על מה הקריקטורה.</li><li>כתבו הצייר מציג או הצייר רוצה להראות, כי אתם מפרשים את דעתו.</li><li>לכל סמל, פירוש אחד. למשל: האיש הגדול מסמל את בריטניה ומראה את כוחה.</li><li>חברו את הציור ללמידה: אימפריאליזם, עושר כלכלי וכוח מדיני.</li><li>בשאלת מהו המסר, כתבו משפט שלם עם נימוק.</li><li>בדקו את נקודת המבט של הצייר: האם הוא מצדיק את הכיבוש או מבקר אותו.</li></ul><p><b>טעויות נפוצות:</b> לתאר בלי לפרש, לכתוב מסר כללי מדי, להתעלם מהכיתובים והתאריך, ולשכוח מי צייר.</p>" }
+  ];
+
+  var content = document.getElementById("content");
+  var notice = document.getElementById("notice");
+  var els = [];
+  SECTIONS.forEach(function (s, i) {
+    var sec = document.createElement("section");
+    sec.innerHTML = '<header><h2></h2><button class="mini" type="button">הקרא</button></header>' + s.html;
+    sec.querySelector("h2").textContent = s.title;
+    sec.querySelector("button").addEventListener("click", function () { speakFrom(i, true); });
+    content.appendChild(sec);
+    els.push(sec);
+    var tmp = document.createElement("div");
+    tmp.innerHTML = s.html;
+    s.text = s.title + ". " + tmp.textContent.replace(/\s+/g, " ").trim();
+  });
+
+  var synth = window.speechSynthesis;
+  if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+    notice.style.display = "block";
+    notice.textContent = "הדפדפן הזה לא תומך בהקראה. נסו Chrome, Edge או Safari.";
+    return;
+  }
+
+  var voice = null;
+  function pickVoice() {
+    var vs = synth.getVoices();
+    voice = null;
+    var he = vs.filter(function (v) {
+      var l = (v.lang || "").toLowerCase().replace("_", "-");
+      return (l === "he-il" || l.indexOf("he") === 0 || l.indexOf("iw") === 0) && !/asaf|אסף/i.test(v.name);
+    });
+    var soft = /carmit|hila|natural|online|google|female/i;
+    function score(v) { return /hila|הילה/i.test(v.name) ? 2 : (soft.test(v.name) ? 1 : 0); }
+    he.sort(function (a, b) { return score(b) - score(a); });
+    var sel = document.getElementById("voiceSel");
+    var saved = sel.value;
+    sel.innerHTML = "";
+    he.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.name; o.textContent = v.name;
+      sel.appendChild(o);
+    });
+    if (he.length) {
+      voice = he.filter(function (v) { return v.name === saved; })[0] || he[0];
+      sel.value = voice.name;
+    } else {
+      sel.innerHTML = "<option>ברירת מחדל</option>";
+    }
+    window.__he = he;
+    if (!voice && vs.length) {
+      notice.style.display = "block";
+      notice.textContent = "לא נמצא קול בעברית במכשיר. אפשר להתקין קול עברי בהגדרות הנגישות או ההקראה של המכשיר.";
+    } else {
+      notice.style.display = "none";
+    }
+  }
+  pickVoice();
+  if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickVoice;
+
+  var current = -1, chainAll = false, token = 0;
+
+  function mark(i) {
+    els.forEach(function (e, k) { e.classList.toggle("playing", k === i); });
+  }
+
+  function speakFrom(i, single) {
+    synth.cancel();
+    token++;
+    chainAll = !single;
+    run(i, token);
+  }
+
+  function run(i, t) {
+    if (i >= SECTIONS.length) {
+      if (document.getElementById("loop").checked) { run(0, t); return; }
+      mark(-1); current = -1; return;
+    }
+    current = i;
+    mark(i);
+    els[i].scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    var u = new SpeechSynthesisUtterance(SECTIONS[i].text);
+    u.lang = "he-IL";
+    if (voice) u.voice = voice;
+    u.rate = parseFloat(document.getElementById("rate").value);
+    u.pitch = 1.15;
+    u.onend = function () {
+      if (t !== token) return;
+      if (chainAll) run(i + 1, t);
+      else if (document.getElementById("loop").checked) run(i, t);
+      else { mark(-1); current = -1; }
+    };
+    u.onerror = function () { if (t === token) mark(-1); };
+    synth.speak(u);
+  }
+
+  document.getElementById("playAll").addEventListener("click", function () { speakFrom(0, false); });
+  document.getElementById("stopBtn").addEventListener("click", function () { token++; synth.cancel(); mark(-1); current = -1; });
+  var pauseBtn = document.getElementById("pauseBtn");
+  pauseBtn.addEventListener("click", function () {
+    if (synth.paused) { synth.resume(); pauseBtn.textContent = "השהיה"; }
+    else if (synth.speaking) { synth.pause(); pauseBtn.textContent = "המשך"; }
+  });
+  document.getElementById("voiceSel").addEventListener("change", function (e) {
+    var n = e.target.value;
+    voice = (window.__he || []).filter(function (v) { return v.name === n; })[0] || voice;
+  });
+  window.addEventListener("pagehide", function () { synth.cancel(); });
+})();
+</script>
+</body>
+</html>
